@@ -1,15 +1,16 @@
 #!/bin/bash
 
-set -x
-set -e
+set -xe
 
 export IMGID=9050
+export STORAGEID="local-lvm"
+export VLAN_TAG=
+
 export RELEASE=10
 export CODENAME=buster
-export VLAN_TAG=
+
 export BASE_IMG="debian-$RELEASE-genericcloud-amd64-daily.qcow2"
 export IMG="debian-$RELEASE-genericcloud-amd64-daily-${IMGID}.qcow2"
-export STORAGEID="local-lvm"
 
 # vlan settings 
 if [ -z "$VLAN_TAG" ];then
@@ -27,25 +28,25 @@ if [ ! -f "${IMG}" ];then
 fi
 
 # prepare mounts
-mkdir -p /tmp/img/$RELEASE/
-guestmount -a ${IMG} -m /dev/sda1 /tmp/img/$RELEASE/
-mount --bind /dev/ /tmp/img/$RELEASE/dev/
-mount --bind /proc/ /tmp/img/$RELEASE/proc/
+mkdir -p /tmp/img/debian-$RELEASE
+guestmount -a ${IMG} -m /dev/sda1 /tmp/img/debian-$RELEASE/
+mount --bind /dev/ /tmp/img/debian-$RELEASE/dev/
+mount --bind /proc/ /tmp/img/debian-$RELEASE/proc/
 
 # get resolving working
-mv /tmp/img/$RELEASE/etc/resolv.conf /tmp/img/$RELEASE/etc/resolv.conf.orig
-cp -a --force /etc/resolv.conf /tmp/img/$RELEASE/etc/resolv.conf
+mv /tmp/img/debian-$RELEASE/etc/resolv.conf /tmp/img/debian-$RELEASE/etc/resolv.conf.orig
+cp -a --force /etc/resolv.conf /tmp/img/debian-$RELEASE/etc/resolv.conf
 
 # install desired apps
-chroot /tmp/img/$RELEASE /bin/bash -c "apt-get update"
-chroot /tmp/img/$RELEASE /bin/bash -c "DEBIAN_FRONTEND=noninteractive apt-get install -y net-tools curl cloud-initramfs-growroot qemu-guest-agent nfs-common open-iscsi lsscsi sg3-utils multipath-tools scsitools"
+chroot /tmp/img/debian-$RELEASE /bin/bash -c "apt-get update"
+chroot /tmp/img/debian-$RELEASE /bin/bash -c "DEBIAN_FRONTEND=noninteractive apt-get install -y net-tools curl cloud-initramfs-growroot qemu-guest-agent nfs-common open-iscsi lsscsi sg3-utils multipath-tools scsitools"
 
 # https://www.electrictoolbox.com/sshd-hostname-lookups/
-sed -i 's:#UseDNS no:UseDNS no:' /tmp/img/$RELEASE/etc/ssh/sshd_config
+sed -i 's:#UseDNS no:UseDNS no:' /tmp/img/debian-$RELEASE/etc/ssh/sshd_config
 
-sed -i '/package-update-upgrade-install/d' /tmp/img/$RELEASE/etc/cloud/cloud.cfg
+sed -i '/package-update-upgrade-install/d' /tmp/img/debian-$RELEASE/etc/cloud/cloud.cfg
 
-cat > /tmp/img/$RELEASE/etc/cloud/cloud.cfg.d/99_custom.cfg << '__EOF__'
+cat > /tmp/img/debian-$RELEASE/etc/cloud/cloud.cfg.d/99_custom.cfg << '__EOF__'
 #cloud-config
 
 # Install additional packages on first boot
@@ -67,7 +68,7 @@ ntp:
 # datasource_list: [ NoCloud, ConfigDrive ]
 __EOF__
 
-cat > /tmp/img/$RELEASE/etc/multipath.conf << '__EOF__'
+cat > /tmp/img/debian-$RELEASE/etc/multipath.conf << '__EOF__'
 defaults {
     user_friendly_names yes
     find_multipaths yes
@@ -75,17 +76,17 @@ defaults {
 __EOF__
 
 # enable services
-chroot /tmp/img/$RELEASE systemctl enable open-iscsi.service || true
-chroot /tmp/img/$RELEASE systemctl enable multipath-tools.service || true
+chroot /tmp/img/debian-$RELEASE systemctl enable open-iscsi.service || true
+chroot /tmp/img/debian-$RELEASE systemctl enable multipath-tools.service || true
 
 # restore systemd-resolved settings
-mv /tmp/img/$RELEASE/etc/resolv.conf.orig /tmp/img/$RELEASE/etc/resolv.conf
+mv /tmp/img/debian-$RELEASE/etc/resolv.conf.orig /tmp/img/debian-$RELEASE/etc/resolv.conf
 
 # umount everything
-umount /tmp/img/$RELEASE/dev
-umount /tmp/img/$RELEASE/proc
-umount /tmp/img/$RELEASE
-rm -rf /tmp/img/$RELEASE/
+umount /tmp/img/debian-$RELEASE/dev
+umount /tmp/img/debian-$RELEASE/proc
+umount /tmp/img/debian-$RELEASE
+rm -rf /tmp/img/debian-$RELEASE/
 
 # create template
 qm create ${IMGID} --memory 512 --name debian-${CODENAME} --net0 virtio,bridge=vmbr0${VLAN_SECTION}

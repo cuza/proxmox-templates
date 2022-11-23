@@ -1,12 +1,13 @@
 #!/bin/bash
 
-set -x
-set -e
+set -xe
 
 export IMGID=9000
-export CODENAME=jammy
-export VLAN_TAG=
 export STORAGEID="local-lvm"
+export VLAN_TAG=
+
+export CODENAME=jammy
+
 export BASE_IMG="$CODENAME-server-cloudimg-amd64.img"
 export IMG="$CODENAME-server-cloudimg-amd64-${IMGID}.qcow2"
 
