@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Boot a disposable snapshot of a template through QEMU serial, without editing
-# the template or creating a persistent Proxmox VM. Network stays disabled.
+# the template or creating a persistent Proxmox VM. External network access stays disabled.
 set -euo pipefail
 [[ $EUID == 0 ]]
 [[ ${1:-} =~ ^[0-9]+$ ]] || { echo 'Usage: verify-console.sh TEMPLATE_ID' >&2; exit 2; }
@@ -24,9 +24,9 @@ trap cleanup EXIT
 # A shell timeout only terminates this disposable QEMU process. snapshot=on
 # redirects guest writes to a temporary overlay; the source template is read-only.
 status=0
-timeout 120 /usr/bin/kvm -machine accel=kvm -cpu host -m 2048 -smp 2 \
+timeout --kill-after=10 300 /usr/bin/kvm -machine accel=kvm -cpu host -m 2048 -smp 2 \
   -drive "file=$disk,format=raw,if=virtio,snapshot=on" \
-  -nic none -display none -serial stdio -monitor none -no-reboot > "$log" 2>&1 || status=$?
+  -nic user,restrict=on,model=virtio-net-pci -display none -serial stdio -monitor none -no-reboot > "$log" 2>&1 || status=$?
 if [[ $status != 0 && $status != 124 ]]; then tail -40 "$log" >&2; exit 1; fi
 tail -20 "$log"
 grep -E 'Linux version|Started.*Serial Getty|ttyS0|login:' "$log" | tail -12

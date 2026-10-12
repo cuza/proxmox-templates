@@ -63,6 +63,6 @@ flag, reattach the retained original base volume to `scsi0`, then restore the
 template flag. Keep the newly imported disk until the rollback is verified.
 
 `verify-console.sh TEMPLATE_ID` boots an isolated, temporary QEMU snapshot with
-no network and checks for a serial login prompt. It never writes the template
+restricted local DHCP and no external network access, and checks for a serial login prompt. It never writes the template
 or creates a persistent VM. This checks guest boot and serial output; a final
 Proxmox UI xterm.js check can be made on a normal clone.
