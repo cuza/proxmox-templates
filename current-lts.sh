@@ -45,7 +45,7 @@ ip link show "$bridge" >/dev/null
 pvesm status --storage "$storage"
 work=$(mktemp -d /var/tmp/proxmox-lts.XXXXXX)
 trap 'rm -rf "$work"' EXIT
-curl --fail --location --retry 3 "$url/$image" -o "$work/base.qcow2"
+curl --ipv4 --fail --location --connect-timeout 15 --max-time 1800 --speed-limit 1024 --speed-time 60 --retry 3 "$url/$image" -o "$work/base.qcow2"
 printf '%s  %s\n' "$checksum" "$work/base.qcow2" | "$hash_command" -c -
 qemu-img create -f qcow2 "$work/template.qcow2" "${DISK_SIZE:-20G}"
 virt-resize --expand /dev/sda1 "$work/base.qcow2" "$work/template.qcow2"
@@ -55,6 +55,7 @@ virt-customize --memsize 2048 -a "$work/template.qcow2" \
   --run-command 'systemctl enable qemu-guest-agent.service serial-getty@ttyS0.service' \
   --run-command 'printf '"'"'GRUB_CMDLINE_LINUX="console=tty0 console=ttyS0,115200n8"\nGRUB_TERMINAL="console serial"\nGRUB_SERIAL_COMMAND="serial --speed=115200 --unit=0 --word=8 --parity=no --stop=1"\n'"'"' > /etc/default/grub.d/99-proxmox-serial.cfg; update-grub' \
   --run-command 'printf "UseDNS no\n" > /etc/ssh/sshd_config.d/90-template.conf' \
+  --run-command 'grub-install --target=i386-pc /dev/sda; update-grub' \
   --run-command 'cloud-init clean --logs --machine-id' \
   --run-command 'rm -f /etc/ssh/ssh_host_*' \
   --run-command 'apt-get clean'

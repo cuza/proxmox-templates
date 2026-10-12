@@ -44,3 +44,25 @@ password login by default; xterm.js showing a login prompt does not create a
 password. Use SSH keys or set an appropriate per-clone cloud-init credential
 if interactive console login is needed. Never bake a shared password into a
 template. Serial-only display intentionally does not provide a graphical GUI.
+
+### Refresh existing templates
+
+`refresh-template.sh TEMPLATE_ID` copies an existing `local-lvm` template disk,
+applies serial console settings and clone identity cleanup, imports the copy,
+and switches the template to it. It preserves the OS release and does not
+attempt package upgrades on EOL releases. Original disks remain attached as
+unused volumes for rollback; do not remove them without checking dependencies.
+Configuration backups are stored root-only in `/root/proxmox-template-backups`.
+The script skips any base disk with linked children. In particular, leave
+8003 (`ubuntu-noble`) unchanged while VM104 depends on its base disk.
+
+The refresh marker makes successful reruns idempotent. If promotion fails,
+inspect `qm config TEMPLATE_ID` and the saved configuration before retrying;
+never start the template as a VM. To roll back, temporarily clear its template
+flag, reattach the retained original base volume to `scsi0`, then restore the
+template flag. Keep the newly imported disk until the rollback is verified.
+
+`verify-console.sh TEMPLATE_ID` boots an isolated, temporary QEMU snapshot with
+no network and checks for a serial login prompt. It never writes the template
+or creates a persistent VM. This checks guest boot and serial output; a final
+Proxmox UI xterm.js check can be made on a normal clone.
